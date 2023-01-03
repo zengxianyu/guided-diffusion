@@ -38,6 +38,7 @@ class TrainLoop:
         schedule_sampler=None,
         weight_decay=0.0,
         lr_anneal_steps=0,
+        lr_warmup_steps=0,
     ):
         self.model = model
         self.diffusion = diffusion
@@ -58,6 +59,7 @@ class TrainLoop:
         self.schedule_sampler = schedule_sampler or UniformSampler(diffusion)
         self.weight_decay = weight_decay
         self.lr_anneal_steps = lr_anneal_steps
+        self.lr_warmup_steps = lr_warmup_steps
 
         self.step = 0
         self.resume_step = 0
@@ -170,6 +172,7 @@ class TrainLoop:
             self.save()
 
     def run_step(self, batch, cond):
+        self._warmup_lr()
         self.forward_backward(batch, cond)
         took_step = self.mp_trainer.optimize(self.opt)
         if took_step:
@@ -222,6 +225,15 @@ class TrainLoop:
             return
         frac_done = (self.step + self.resume_step) / self.lr_anneal_steps
         lr = self.lr * (1 - frac_done)
+        for param_group in self.opt.param_groups:
+            param_group["lr"] = lr
+
+    def _warmup_lr(self):
+        if not self.lr_warmup_steps or self.step > self.lr_warmup_steps:
+            return
+        frac_done = self.step / self.lr_warmup_steps
+        lr = self.lr * frac_done
+        print(f"warmup lr: {lr}")
         for param_group in self.opt.param_groups:
             param_group["lr"] = lr
 
