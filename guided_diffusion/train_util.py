@@ -116,12 +116,13 @@ class TrainLoop:
             self.resume_step = parse_resume_step_from_filename(resume_checkpoint)
             if dist.get_rank() == 0:
                 logger.log(f"loading model from checkpoint: {resume_checkpoint}...")
-                self.model.load_state_dict(
-                    dist_util.load_state_dict(
-                        resume_checkpoint, map_location=dist_util.dev()
-                    )
-                )
-
+            self.model.cpu()
+            self.model.load_state_dict(
+                dist_util.load_state_dict(
+                    resume_checkpoint, map_location="cpu"
+                ), strict=True
+            )
+            self.model.to(dist_util.dev())
         dist_util.sync_params(self.model.parameters())
 
     def _load_ema_parameters(self, rate):
@@ -132,11 +133,12 @@ class TrainLoop:
         if ema_checkpoint:
             if dist.get_rank() == 0:
                 logger.log(f"loading EMA from checkpoint: {ema_checkpoint}...")
-                state_dict = dist_util.load_state_dict(
-                    ema_checkpoint, map_location=dist_util.dev()
-                )
-                ema_params = self.mp_trainer.state_dict_to_master_params(state_dict)
-
+            state_dict = dist_util.load_state_dict(
+            ema_checkpoint, map_location="cpu"
+            )
+            ema_params = self.mp_trainer.state_dict_to_master_params(state_dict)
+            for i,v in enumerate(ema_params):
+                ema_params[i] = v.to(dist_util.dev())
         dist_util.sync_params(ema_params)
         return ema_params
 
@@ -146,9 +148,10 @@ class TrainLoop:
             bf.dirname(main_checkpoint), f"opt{self.resume_step:06}.pt"
         )
         if bf.exists(opt_checkpoint):
-            logger.log(f"loading optimizer state from checkpoint: {opt_checkpoint}")
+            if dist.get_rank() == 0:
+                logger.log(f"loading optimizer state from checkpoint: {opt_checkpoint}")
             state_dict = dist_util.load_state_dict(
-                opt_checkpoint, map_location=dist_util.dev()
+                opt_checkpoint, map_location="cpu"
             )
             self.opt.load_state_dict(state_dict)
 
