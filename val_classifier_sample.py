@@ -92,7 +92,6 @@ def main():
     logger.log("sampling...")
     bdata = next(data, None)
     while bdata is not None:
-        pdb.set_trace()
         img, cond = bdata
         img = img.to(dist_util.dev())
         filename = cond.pop("filename")
