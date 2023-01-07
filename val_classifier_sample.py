@@ -36,6 +36,10 @@ def save_output(out_path, arr0, label_arr=None, save_npz=True):
         else:
             np.savez(out_path+".npz", arr0[None,...])
 
+out_path = logger.get_dir()
+if not os.path.exists(f"{out_path}/output"):
+    os.mkdir(f"{out_path}/output")
+
 
 def main():
     args = create_argparser().parse_args()
@@ -87,6 +91,9 @@ def main():
         return_name=True,
         return_prefix=True,
         deterministic=True,
+        n_split=args.n_split,
+        i_split=args.i_split,
+        imagenet=args.imagenet
     )
 
     logger.log("sampling...")
@@ -104,7 +111,7 @@ def main():
         )
         sample = sample_fn(
             model_fn,
-            (args.batch_size, 3, args.image_size, args.image_size),
+            (cond["y"].size(0), 3, args.image_size, args.image_size),
             clip_denoised=args.clip_denoised,
             model_kwargs=model_kwargs,
             cond_fn=cond_fn,
@@ -140,6 +147,9 @@ def create_argparser():
         model_path="",
         classifier_path="",
         classifier_scale=1.0,
+        i_split=0,
+        n_split=1,
+        imagenet=False
     )
     defaults.update(model_and_diffusion_defaults())
     defaults.update(classifier_defaults())
