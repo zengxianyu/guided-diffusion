@@ -58,19 +58,23 @@ def main():
         data_dir=args.data_dir,
         batch_size=args.batch_size,
         image_size=args.small_size,
-        class_cond=True,
+        class_cond=args.class_cond,
         return_name=True,
-        return_prefix=True,
+        return_prefix=args.return_prefix,
         deterministic=True,
+        return_loader=True
     )
 
+    data = iter(data)
     logger.log("creating samples...")
     bdata = next(data, None)
     while bdata is not None:
         img, model_kwargs = bdata
         img = img.to(dist_util.dev())
         filename = model_kwargs.pop("filename")
-        prefix = model_kwargs.pop("prefix")
+        prefix = None
+        if "prefix" in model_kwargs:
+            prefix = model_kwargs.pop("prefix")
         #model_kwargs["low_res"] = F.interpolate(img, args.small_size, mode="area")
         model_kwargs["low_res"] = img
         bdata = next(data)
@@ -91,9 +95,12 @@ def main():
         out_path = logger.get_dir()
         logger.log(f"saving to {out_path}")
         for i in range(len(sample)):
-            out_path_i = os.path.join(out_path, "output", prefix[i])
-            if not os.path.exists(out_path_i):
-                os.mkdir(out_path_i)
+            if args.return_prefix:
+                out_path_i = os.path.join(out_path, "output", prefix[i])
+                if not os.path.exists(out_path_i):
+                    os.mkdir(out_path_i)
+            else:
+                out_path_i = os.path.join(out_path, "output")
             out_path_i = os.path.join(out_path_i, filename[i])
             save_output(out_path_i, sample[i])
             logger.log(f"saving to {out_path_i}")
@@ -104,6 +111,7 @@ def main():
 def create_argparser():
     defaults = dict(
         clip_denoised=True,
+        return_prefix=True,
         batch_size=16,
         small_size=64,
         large_size=256,
