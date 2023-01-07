@@ -1,4 +1,6 @@
 import math
+import yaml
+import pdb
 import random
 
 from PIL import Image
@@ -6,6 +8,11 @@ import blobfile as bf
 from mpi4py import MPI
 import numpy as np
 from torch.utils.data import DataLoader, Dataset
+
+def synset2idx(path_to_yaml="index_synset.yaml"):
+    with open(path_to_yaml) as f:
+        di2s = yaml.safe_load(f)
+    return dict((v,k) for k,v in di2s.items())
 
 def load_data(*args, **kwargs):
     return_loader = 'return_loader' in kwargs and kwargs.pop('return_loader')
@@ -29,6 +36,11 @@ def _load_data(
     random_crop=False,
     random_flip=True,
     load_npz=False,
+    return_name=False,
+    return_prefix=False,
+    i_split=0,
+    n_split=1,
+    imagenet=False,
 ):
     """
     For a dataset, create a generator over (images, kwargs) pairs.
@@ -52,6 +64,8 @@ def _load_data(
         raise ValueError("unspecified data directory")
     if load_npz:
         all_files = _list_image_files_recursively(data_dir, npz=True)
+        num = math.ceil(len(all_files)/float(n_split))
+        all_files = all_files[i_split*num:(i_split+1)*num]
         dataset = NPZDataset(
             all_files,
             shard=MPI.COMM_WORLD.Get_rank(),
@@ -66,6 +80,14 @@ def _load_data(
             class_names = [bf.basename(path).split("_")[0] for path in all_files]
             sorted_classes = {x: i for i, x in enumerate(sorted(set(class_names)))}
             classes = [sorted_classes[x] for x in class_names]
+        num = math.ceil(len(all_files)/float(n_split))
+        all_files = all_files[i_split*num:(i_split+1)*num]
+        if classes is not None:
+            classes = classes[i_split*num:(i_split+1)*num]
+        if imagenet:
+            synset = synset2idx()
+            classes = [synset[name.split("/")[-2]] for name in all_files]
+
         dataset = ImageDataset(
             image_size,
             all_files,
@@ -74,6 +96,8 @@ def _load_data(
             num_shards=MPI.COMM_WORLD.Get_size(),
             random_crop=random_crop,
             random_flip=random_flip,
+            return_name=return_name,
+            return_prefix=return_prefix,
         )
     if deterministic:
         loader = DataLoader(
@@ -108,8 +132,12 @@ class ImageDataset(Dataset):
         num_shards=1,
         random_crop=False,
         random_flip=True,
+        return_name=False,
+        return_prefix=False,
     ):
         super().__init__()
+        self.return_name = return_name
+        self.return_prefix = return_prefix
         self.resolution = resolution
         self.local_images = image_paths[shard:][::num_shards]
         self.local_classes = None if classes is None else classes[shard:][::num_shards]
@@ -122,6 +150,7 @@ class ImageDataset(Dataset):
     def __getitem__(self, idx):
         try:
             path = self.local_images[idx]
+            prefix, name = path.split("/")[-2:]
             with bf.BlobFile(path, "rb") as f:
                 pil_image = Image.open(f)
                 pil_image.load()
@@ -138,6 +167,10 @@ class ImageDataset(Dataset):
             arr = arr.astype(np.float32) / 127.5 - 1
 
             out_dict = {}
+            if self.return_name:
+                out_dict['filename'] = name
+            if self.return_prefix:
+                out_dict['prefix'] = prefix
             if self.local_classes is not None:
                 out_dict["y"] = np.array(self.local_classes[idx], dtype=np.int64)
             return np.transpose(arr, [2, 0, 1]), out_dict
