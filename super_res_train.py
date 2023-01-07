@@ -3,12 +3,14 @@ Train a super-resolution model.
 """
 
 import argparse
+import torch
 
 import torch.nn.functional as F
 
 from guided_diffusion import dist_util, logger
 from guided_diffusion.image_datasets import load_data
 from guided_diffusion.resample import create_named_schedule_sampler
+from guided_diffusion.unet import UNetModel
 from guided_diffusion.script_util import (
     sr_model_and_diffusion_defaults,
     sr_create_model_and_diffusion,
@@ -23,6 +25,33 @@ def main():
 
     dist_util.setup_dist()
     logger.configure()
+
+    recnet = None
+    if args.use_recnet:
+        logger.log("creating recnet model...")
+        recnet = UNetModel(
+            image_size=args.large_size,
+            in_channels=3,
+            model_channels=64,
+            out_channels=3,
+            num_res_blocks=2,
+            attention_resolutions=(8, 16, 32),
+            dropout=0.1,
+            channel_mult=(1,1,2,2,4,4),
+            num_classes=None,
+            use_checkpoint=False,
+            use_fp16=False,
+            num_heads=4,
+            num_head_channels=64,
+            num_heads_upsample=-1,
+            use_scale_shift_norm=True,
+            resblock_updown=True,
+            use_new_attention_order=True,
+        )
+        recnet.load_state_dict(torch.load(args.path_recnet))
+        recnet.to(dist_util.dev())
+        recnet.eval()
+        recnet.dumt = 100
 
     logger.log("creating model...")
     model, diffusion = sr_create_model_and_diffusion(
@@ -65,6 +94,7 @@ def main():
         weight_decay=args.weight_decay,
         lr_anneal_steps=args.lr_anneal_steps,
         lr_warmup_steps=args.lr_warmup_steps,
+        recnet=recnet
     ).run_loop()
 
 
@@ -84,6 +114,8 @@ def create_argparser():
     defaults = dict(
         data_dir="",
         finetune=None,
+        use_recnet=False,
+        path_recnet="",
         schedule_sampler="uniform",
         lr=1e-4,
         weight_decay=0.0,

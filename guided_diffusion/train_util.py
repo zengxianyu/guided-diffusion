@@ -1,6 +1,7 @@
 import copy
 import functools
 import os
+import pdb
 
 import blobfile as bf
 import torch as th
@@ -39,8 +40,10 @@ class TrainLoop:
         weight_decay=0.0,
         lr_anneal_steps=0,
         lr_warmup_steps=0,
+        recnet=None
     ):
         self.model = model
+        self.recnet = recnet
         self.diffusion = diffusion
         self.data = data
         self.batch_size = batch_size
@@ -187,6 +190,13 @@ class TrainLoop:
         self.mp_trainer.zero_grad()
         for i in range(0, batch.shape[0], self.microbatch):
             micro = batch[i : i + self.microbatch].to(dist_util.dev())
+            if self.recnet is not None:
+                with th.no_grad():
+                    dumt = th.Tensor([self.recnet.dumt]\
+                            *micro.size(0)).to(dist_util.dev())
+                    micro = self.recnet(micro,dumt)
+                micro = micro.detach()
+
             micro_cond = {
                 k: v[i : i + self.microbatch].to(dist_util.dev())
                 for k, v in cond.items()
