@@ -4,31 +4,33 @@ NGPUS=${#arr[@]}
 echo "gpus: $GPUS"
 echo "num gpus: $NGPUS"
 
+pathmodel="models"
+FILES="
+64_256_upsampler.pt
+"
 #pathmodel="output/imagenet64x64_sr256_finetune"
 #FILES="
+#ema_0.9999_080000.pt
+#ema_0.9999_090000.pt
+#ema_0.9999_100000.pt
 #ema_0.9999_110000.pt
+#ema_0.9999_120000.pt
+#ema_0.9999_130000.pt
+#ema_0.9999_140000.pt
+#ema_0.9999_150000.pt
+#ema_0.9999_160000.pt
+#ema_0.9999_170000.pt
+#ema_0.9999_180000.pt
+#ema_0.9999_190000.pt
+#ema_0.9999_200000.pt
+#ema_0.9999_210000.pt
+#ema_0.9999_220000.pt
+#ema_0.9999_230000.pt
+#ema_0.9999_240000.pt
 #"
-pathmodel="output/imagenet64x64_sr256_finetune"
-FILES="
-ema_0.9999_080000.pt
-ema_0.9999_090000.pt
-ema_0.9999_100000.pt
-ema_0.9999_110000.pt
-ema_0.9999_120000.pt
-ema_0.9999_130000.pt
-ema_0.9999_140000.pt
-ema_0.9999_150000.pt
-ema_0.9999_160000.pt
-ema_0.9999_170000.pt
-ema_0.9999_180000.pt
-ema_0.9999_190000.pt
-ema_0.9999_200000.pt
-ema_0.9999_210000.pt
-ema_0.9999_220000.pt
-ema_0.9999_230000.pt
-ema_0.9999_240000.pt
-"
 pathdata="samples-imagenet64-1k/64x64_diffusion.pt/output"
+pathgt="/data/yzeng22/imagenetval_sample1k_center256"
+pathlog="./samples-sr_imagenet-1k_pretrain"
 for f in $FILES
 do
 	export OPENAI_LOGDIR="./samples-sr_imagenet-1k_pretrain/$f"
@@ -41,4 +43,5 @@ do
 		GPU_IDS=$gpuid python super_res_sample.py $MODEL_FLAGS --model_path $pathmodel/$f $SAMPLE_FLAGS --n_split $NGPUS --i_split $(($idx-1)) ) &
 	done
 	wait
+	python -m pytorch_fid $pathgt $OPENAI_LOGDIR/output --device cuda:${arr[0]}  | grep FID | sed "s/^/file $f /" >> $pathlog.txt
 done
