@@ -62,6 +62,8 @@ def main():
         return_name=True,
         return_prefix=args.return_prefix,
         deterministic=True,
+        n_split=args.n_split,
+        i_split=args.i_split,
         return_loader=True
     )
 
@@ -117,6 +119,8 @@ def create_argparser():
         large_size=256,
         use_ddim=False,
         model_path="",
+        i_split=0,
+        n_split=1,
         data_dir=""
     )
     defaults.update(sr_model_and_diffusion_defaults())

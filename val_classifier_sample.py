@@ -93,8 +93,10 @@ def main():
         deterministic=True,
         n_split=args.n_split,
         i_split=args.i_split,
-        imagenet=args.imagenet
+        imagenet=args.imagenet,
+        return_loader=True
     )
+    data = iter(data)
 
     logger.log("sampling...")
     bdata = next(data, None)
