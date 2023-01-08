@@ -79,11 +79,11 @@ def main():
             prefix = model_kwargs.pop("prefix")
         #model_kwargs["low_res"] = F.interpolate(img, args.small_size, mode="area")
         model_kwargs["low_res"] = img
-        bdata = next(data)
+        bdata = next(data, None)
         model_kwargs = {k: v.to(dist_util.dev()) for k, v in model_kwargs.items()}
         sample = diffusion.p_sample_loop(
             model,
-            (args.batch_size, 3, args.large_size, args.large_size),
+            (img.size(0), 3, args.large_size, args.large_size),
             clip_denoised=args.clip_denoised,
             model_kwargs=model_kwargs,
         )
