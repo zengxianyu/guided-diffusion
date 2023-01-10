@@ -33,7 +33,7 @@ def save_output(out_path, arr0, label_arr=None, save_npz=True):
 
 out_path = logger.get_dir()
 if not os.path.exists(f"{out_path}/output"):
-    os.mkdir(f"{out_path}/output")
+    os.makedirs(f"{out_path}/output", exist_ok=True)
 
 def main():
     args = create_argparser().parse_args()

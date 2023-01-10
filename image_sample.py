@@ -9,7 +9,7 @@ import os
 import numpy as np
 import torch as th
 
-th.manual_seed(20)
+#th.manual_seed(20)
 
 import torch.distributed as dist
 from PIL import Image
@@ -36,7 +36,7 @@ def save_output(out_path, arr0, label_arr=None, save_npz=True):
 
 out_path = logger.get_dir()
 if not os.path.exists(f"{out_path}/output"):
-    os.mkdir(f"{out_path}/output")
+    os.makedirs(f"{out_path}/output", exist_ok=True)
 
 def main():
 
@@ -104,7 +104,7 @@ def main():
                 text = batch_text[i]
             else:
                 #text = str(N_sample)
-                text = f"gdcat_{(N_sample+args.idx):02d}_1"
+                text = f"gdcat_{(N_sample+args.idx*args.num_samples)}_1"
             out_path_i = os.path.join(out_path, "output", text)
             if args.class_cond:
                 save_output(out_path_i, sample[i], classes[i])
