@@ -94,8 +94,8 @@ def _load_data(
             classes=classes,
             shard=MPI.COMM_WORLD.Get_rank(),
             num_shards=MPI.COMM_WORLD.Get_size(),
-            random_crop=random_crop,
-            random_flip=random_flip,
+            random_crop=random_crop and not deterministic,
+            random_flip=random_flip and not deterministic,
             return_name=return_name,
             return_prefix=return_prefix,
         )
