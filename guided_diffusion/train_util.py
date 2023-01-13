@@ -195,6 +195,7 @@ class TrainLoop:
                     dumt = th.Tensor([self.recnet.dumt]\
                             *micro.size(0)).to(dist_util.dev())
                     micro = self.recnet(micro,dumt)
+                    micro = th.tanh(micro)
                 micro = micro.detach()
 
             micro_cond = {
