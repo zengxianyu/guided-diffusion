@@ -8,8 +8,10 @@ import blobfile as bf
 from mpi4py import MPI
 import numpy as np
 from torch.utils.data import DataLoader, Dataset
+import os
+dir_path = os.path.dirname(os.path.realpath(__file__))
 
-def synset2idx(path_to_yaml="index_synset.yaml"):
+def synset2idx(path_to_yaml=f"{dir_path}/index_synset.yaml"):
     with open(path_to_yaml) as f:
         di2s = yaml.safe_load(f)
     return dict((v,k) for k,v in di2s.items())
