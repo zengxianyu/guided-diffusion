@@ -475,7 +475,13 @@ class UNetModel(nn.Module):
         )
 
         if self.num_classes is not None:
-            self.label_emb = nn.Embedding(num_classes, time_embed_dim)
+            if self.num_classes < 0:
+                self.label_emb = nn.Sequential(
+                    linear(-self.num_classes, time_embed_dim),
+                    nn.SiLU(),
+                    linear(time_embed_dim, time_embed_dim),)
+            else:
+                self.label_emb = nn.Embedding(num_classes, time_embed_dim)
 
         ch = input_ch = int(channel_mult[0] * model_channels)
         self.input_blocks = nn.ModuleList(
@@ -648,7 +654,8 @@ class UNetModel(nn.Module):
         emb = self.time_embed(timestep_embedding(timesteps, self.model_channels))
 
         if self.num_classes is not None:
-            assert y.shape == (x.shape[0],)
+            if self.num_classes >0:
+                assert y.shape == (x.shape[0],)
             emb = emb + self.label_emb(y)
 
         h = x.type(self.dtype)
